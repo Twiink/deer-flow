@@ -834,7 +834,7 @@ class TestJsonMatchCompilation:
         metadata = MetaData()
         t = Table("t", metadata, Column("data", JSON), Column("id", String))
 
-        for bad_key in ["a.b", "with space", "bad'quote", 'bad"quote', "back\\slash", "semi;colon", ""]:
+        for bad_key in ["a.b", "with space", "bad'quote", 'bad"quote', "back\\slash", "semi;colon", "trail\n", ""]:
             with pytest.raises(ValueError, match="JsonMatch key must match"):
                 json_match(t.c.data, bad_key, "x")
 

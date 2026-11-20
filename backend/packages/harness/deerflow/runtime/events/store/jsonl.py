@@ -100,7 +100,7 @@ class JsonlRunEventStore(RunEventStore):
 
     @staticmethod
     def _is_safe_id(value: str) -> bool:
-        return bool(value) and _SAFE_ID_PATTERN.match(value) is not None
+        return bool(value) and _SAFE_ID_PATTERN.fullmatch(value) is not None
 
     @staticmethod
     def _validate_id(value: str, label: str) -> str:

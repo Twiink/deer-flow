@@ -63,7 +63,7 @@ def validate_metadata_filter_key(key: object) -> bool:
     compiled SQL path expression (``$."<key>"`` / ``->`` literal), so any
     laxer pattern would open a SQL/JSONPath injection surface.
     """
-    return isinstance(key, str) and bool(_KEY_CHARSET_RE.match(key))
+    return isinstance(key, str) and bool(_KEY_CHARSET_RE.fullmatch(key))
 
 
 def validate_metadata_filter_value(value: object) -> bool:

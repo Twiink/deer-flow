@@ -1531,11 +1531,12 @@ class TestJsonlRunEventStore:
         assert await s.count_messages("t1") == 1
 
     @pytest.mark.anyio
-    async def test_unsafe_run_id_is_still_rejected_on_write(self, tmp_path):
+    @pytest.mark.parametrize("run_id", ["run.1", "run\n"])
+    async def test_unsafe_run_id_is_still_rejected_on_write(self, tmp_path, run_id):
         from deerflow.runtime.events.store.jsonl import JsonlRunEventStore
 
         s = JsonlRunEventStore(base_dir=tmp_path / "jsonl")
-        event = {"thread_id": "t1", "run_id": "run.1", "event_type": "ai_message", "category": "message"}
+        event = {"thread_id": "t1", "run_id": run_id, "event_type": "ai_message", "category": "message"}
 
         with pytest.raises(ValueError, match="Invalid run_id"):
             await s.put(**event)
@@ -1544,6 +1545,9 @@ class TestJsonlRunEventStore:
         with pytest.raises(ValueError, match="Invalid run_id"):
             await s.put_batch([event])
         assert await s.count_messages("t1") == 0
+        # The ID is validated before it becomes a filename, so no run file whose
+        # name carries the rejected character is left on disk.
+        assert list((tmp_path / "jsonl" / "threads" / "t1" / "runs").glob("*.jsonl")) == []
 
 
 class TestGetMessageSeqs:
