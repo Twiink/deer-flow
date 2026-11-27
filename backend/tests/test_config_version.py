@@ -704,6 +704,79 @@ def _write_outdated_config(path: Path) -> str:
 
 
 @pytest.mark.skipif(SCRIPT_BASH is None, reason="repo shell-script tests need Git Bash on Windows")
+def test_config_upgrade_runs_without_consulting_the_package_index(tmp_path):
+    checkout = tmp_path / "checkout"
+    _write_outdated_config(checkout / "config.yaml")
+
+    result = _run_config_upgrade_in_checkout(
+        checkout,
+        UV_DEFAULT_INDEX="http://127.0.0.1:9/simple",
+        UV_INDEX="http://127.0.0.1:9/simple",
+        UV_EXTRA_INDEX_URL="http://127.0.0.1:9/simple",
+        UV_INDEX_URL="http://127.0.0.1:9/simple",
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    expected_version = yaml.safe_load((checkout / "config.example.yaml").read_text(encoding="utf-8"))["config_version"]
+    upgraded = yaml.safe_load((checkout / "config.yaml").read_text(encoding="utf-8"))
+    assert upgraded["config_version"] == expected_version
+
+
+@pytest.mark.skipif(SCRIPT_BASH is None, reason="repo shell-script tests need Git Bash on Windows")
+def test_config_upgrade_fails_when_the_backend_environment_is_absent(tmp_path):
+    checkout = tmp_path / "checkout"
+    original = _write_outdated_config(checkout / "config.yaml")
+
+    result = _run_config_upgrade_in_checkout(checkout, UV_PROJECT_ENVIRONMENT=str(tmp_path / "absent-venv"))
+
+    assert result.returncode != 0
+    assert "skipping the config upgrade" not in result.stdout
+    assert (checkout / "config.yaml").read_text(encoding="utf-8") == original
+
+
+@pytest.mark.skipif(SCRIPT_BASH is None, reason="repo shell-script tests need Git Bash on Windows")
+def test_config_upgrade_creates_default_without_a_backend_environment(tmp_path):
+    if any(path.exists() for path in _legacy_config_candidates()):
+        pytest.skip("the resolver's legacy fallback would find this repository's own config.yaml")
+    checkout = tmp_path / "checkout"
+
+    result = _run_config_upgrade_in_checkout(checkout, UV_PROJECT_ENVIRONMENT=str(tmp_path / "absent-venv"))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "creating from example" in result.stdout
+    assert (checkout / "config.yaml").read_bytes() == (checkout / "config.example.yaml").read_bytes()
+
+
+@pytest.mark.skipif(SCRIPT_BASH is None, reason="repo shell-script tests need Git Bash on Windows")
+def test_config_upgrade_rejects_empty_deer_flow_env_file(tmp_path):
+    if any(path.exists() for path in _legacy_config_candidates()):
+        pytest.skip("the resolver's legacy fallback would find this repository's own config.yaml")
+    checkout = tmp_path / "checkout"
+
+    result = _run_config_upgrade_in_checkout(checkout, DEER_FLOW_ENV_FILE="")
+
+    assert result.returncode != 0
+    assert "DEER_FLOW_ENV_FILE" in result.stderr
+    assert not (checkout / "config.yaml").exists()
+
+
+@pytest.mark.skipif(SCRIPT_BASH is None, reason="repo shell-script tests need Git Bash on Windows")
+def test_config_upgrade_does_not_seed_default_when_backend_dotenv_exists(tmp_path):
+    if any(path.exists() for path in _legacy_config_candidates()):
+        pytest.skip("the resolver's legacy fallback would find this repository's own config.yaml")
+    checkout = tmp_path / "checkout"
+    live = tmp_path / "live.yaml"
+    _write_outdated_config(live)
+    (checkout / "backend").mkdir(parents=True)
+    (checkout / "backend" / ".env").write_text(f"DEER_FLOW_CONFIG_PATH={live}\n", encoding="utf-8")
+
+    result = _run_config_upgrade_in_checkout(checkout, UV_PROJECT_ENVIRONMENT=str(tmp_path / "absent-venv"))
+
+    assert result.returncode != 0
+    assert not (checkout / "config.yaml").exists()
+
+
+@pytest.mark.skipif(SCRIPT_BASH is None, reason="repo shell-script tests need Git Bash on Windows")
 def test_config_upgrade_targets_checkout_config_over_legacy_backend_copy(tmp_path):
     """With both copies present, upgrade the checkout config.yaml that `make dev` loads."""
     checkout = tmp_path / "checkout"

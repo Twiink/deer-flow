@@ -44,6 +44,11 @@ Cases marked for real Compose run only when a `docker` CLI is installed.
 - **Never source a dotenv file.** Parse it and quote path arguments. A dotenv
   value overrides nothing that the shell exported, including an exported empty
   value.
+- **Config upgrades use the installed environment.** `config-upgrade.sh` runs
+  migrations with `uv run --no-sync`; a pristine checkout can copy the example
+  without Python installed, while standalone upgrade failures remain errors.
+  `serve.sh` may defer its pre-install call, then reruns the upgrade after
+  dependency installation and before Gateway startup.
 - **`deploy.sh` lets Compose parse `.env`.** Compose accepts forms that a
   `KEY=VALUE` grep misses, so the script asks `docker compose config` what a key
   resolves to. Do not export a value the script read from `.env`: that shadows

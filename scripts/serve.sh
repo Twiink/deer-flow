@@ -410,7 +410,15 @@ if ! { \
     exit 1
 fi
 
-bash "$REPO_ROOT/scripts/config-upgrade.sh"
+# A fresh checkout has no installed harness yet; only this path may defer the upgrade.
+if (cd "$REPO_ROOT/backend" && uv run --no-sync python - >/dev/null 2>&1 <<'DEERFLOW_ENV_PROBE'
+import deerflow
+DEERFLOW_ENV_PROBE
+); then
+    bash "$REPO_ROOT/scripts/config-upgrade.sh"
+else
+    echo "⚠ Backend environment unavailable — deferring the config upgrade until after dependency installation."
+fi
 
 # ── Install dependencies ────────────────────────────────────────────────────
 
@@ -449,6 +457,9 @@ if ! $SKIP_INSTALL; then
 else
     echo "⏩ Skipping dependency install (--skip-install)"
 fi
+
+# Finish any deferred migration before the Gateway reads the config.
+bash "$REPO_ROOT/scripts/config-upgrade.sh"
 
 # ── Banner ───────────────────────────────────────────────────────────────────
 

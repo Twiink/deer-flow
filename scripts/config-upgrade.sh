@@ -11,6 +11,29 @@ set -e
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXAMPLE="$REPO_ROOT/config.example.yaml"
 
+if [ ! -f "$EXAMPLE" ]; then
+    echo "✗ config.example.yaml not found at $EXAMPLE"
+    exit 1
+fi
+
+create_default_config() {
+    echo "No config.yaml found — creating from example..."
+    cp "$EXAMPLE" "$REPO_ROOT/config.yaml"
+    echo "OK config.yaml created. Please review and set your API keys."
+    exit 0
+}
+
+# An exported empty selector is invalid, not unset.
+if [ ! -f "$REPO_ROOT/config.yaml" ] && \
+    [ ! -f "$REPO_ROOT/backend/config.yaml" ] && \
+    [ ! -f "$REPO_ROOT/.env" ] && \
+    [ ! -f "$REPO_ROOT/backend/.env" ] && \
+    [ -z "${DEER_FLOW_ENV_FILE+x}" ] && \
+    [ -z "${DEER_FLOW_CONFIG_PATH:-}" ] && \
+    [ -z "${DEER_FLOW_PROJECT_ROOT:-}" ]; then
+    create_default_config
+fi
+
 if command -v cygpath >/dev/null 2>&1; then
     REPO_ROOT_WIN="$(cygpath -w "$REPO_ROOT")"
 else
@@ -26,7 +49,7 @@ fi
 # python/uv resolve through pyenv-win shim layers, arguments cross a cmd.exe
 # reparse boundary that mangles multi-line argv (observed as a bogus
 # "IndentationError: unexpected indent" on '|| goto :error'). stdin is safe.
-CONFIG="$(cd "$REPO_ROOT/backend" && REPO_ROOT_WIN_PATH="$REPO_ROOT_WIN" uv run python - <<'DEERFLOW_UPGRADE_PY'
+CONFIG="$(cd "$REPO_ROOT/backend" && REPO_ROOT_WIN_PATH="$REPO_ROOT_WIN" uv run --no-sync python - <<'DEERFLOW_UPGRADE_PY'
 import os
 import sys
 
@@ -59,16 +82,8 @@ except ValueError as exc:
 DEERFLOW_UPGRADE_PY
 )"
 
-if [ ! -f "$EXAMPLE" ]; then
-    echo "✗ config.example.yaml not found at $EXAMPLE"
-    exit 1
-fi
-
 if [ -z "$CONFIG" ]; then
-    echo "No config.yaml found — creating from example..."
-    cp "$EXAMPLE" "$REPO_ROOT/config.yaml"
-    echo "OK config.yaml created. Please review and set your API keys."
-    exit 0
+    create_default_config
 fi
 
 # Use inline Python to do migrations + recursive merge with PyYAML
@@ -80,7 +95,7 @@ else
     EXAMPLE_WIN="$EXAMPLE"
 fi
 
-cd "$REPO_ROOT/backend" && CONFIG_WIN_PATH="$CONFIG_WIN" EXAMPLE_WIN_PATH="$EXAMPLE_WIN" uv run python - <<'DEERFLOW_UPGRADE_PY'
+cd "$REPO_ROOT/backend" && CONFIG_WIN_PATH="$CONFIG_WIN" EXAMPLE_WIN_PATH="$EXAMPLE_WIN" uv run --no-sync python - <<'DEERFLOW_UPGRADE_PY'
 import os
 import sys, shutil, copy, re, secrets
 from pathlib import Path
