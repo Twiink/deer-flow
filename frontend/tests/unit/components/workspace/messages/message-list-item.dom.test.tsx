@@ -23,6 +23,16 @@ rs.mock("@/components/workspace/messages/markdown-content", () => ({
   MarkdownContent: () => null,
 }));
 
+rs.mock("@/components/workspace/artifacts/context", () => ({
+  useArtifacts: () => ({
+    artifacts: [],
+    autoOpen: false,
+    autoSelect: false,
+    select: () => undefined,
+    setOpen: () => undefined,
+  }),
+}));
+
 // Count calls to the copy-data derivation itself. The render path reads the
 // message content for the body (markdown, reasoning, tasks), so content
 // getters cannot distinguish rendering reads from copy derivation — the spy
@@ -293,5 +303,37 @@ describe("MessageListItem edit lock while a goal is set", () => {
   it("renders no pencil when neither flag is set", () => {
     renderHumanRow({});
     expect(screen.queryByRole("button", { name: "Edit and rerun" })).toBeNull();
+  });
+});
+
+describe("MessageListItem file card type label", () => {
+  function renderRowWithFile(filename: string) {
+    const message = {
+      id: "human-files",
+      type: "human",
+      content: "here is a file",
+      additional_kwargs: {
+        files: [
+          {
+            filename,
+            size: 2048,
+            path: `/uploads/${filename}`,
+            status: "uploaded",
+          },
+        ],
+      },
+    } as unknown as Message;
+    return renderRow(message, { showCopyButton: false });
+  }
+
+  it.each([
+    ["__proto__", "__PROTO__"],
+    ["notes.constructor", "CONSTRUCTOR"],
+    ["report.pdf", "PDF"],
+  ])("labels %s as %s", (filename, label) => {
+    const view = renderRowWithFile(filename);
+    expect(
+      view.getByRole("button", { name: `${filename} ${label} · 2.0 KB` }),
+    ).not.toBeNull();
   });
 });

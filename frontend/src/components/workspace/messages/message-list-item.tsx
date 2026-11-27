@@ -713,7 +713,10 @@ const IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"];
 
 function getFileTypeLabel(filename: string): string {
   const ext = getFileExt(filename);
-  return FILE_TYPE_MAP[ext] ?? (ext.toUpperCase() || "FILE");
+  const mapped = Object.hasOwn(FILE_TYPE_MAP, ext)
+    ? FILE_TYPE_MAP[ext]
+    : undefined;
+  return mapped ?? (ext.toUpperCase() || "FILE");
 }
 
 function isImageFile(filename: string): boolean {
